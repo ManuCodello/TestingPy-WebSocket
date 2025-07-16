@@ -7,22 +7,22 @@ username = input("Colocá tu nombre de usuario: ")
 host = "127.0.0.1"
 port = 55555
 
-# Crear socket TCP
+# Crear socket IPV4, TCP
 cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-cliente.connect((host, port))
+cliente.connect((host, port)) #conectar al servidor
 cliente.setblocking(True)  # ← esto arregla el error WinError 10035
 
-cola_mensajes = asyncio.Queue()
+cola_mensajes = asyncio.Queue() # Cola para manejar mensajes de forma asíncrona
 
 # Hilo para leer input del usuario y meter en la cola
 def leer_input(loop):
-    while True:
+    while True: # Bucle para leer continuamente
         try:
-            texto = input()
-            mensaje = f"{username} : {texto}"
+            texto = input() 
+            mensaje = f"{username} : {texto}"  
             # Enviar la tarea al loop desde el hilo de input
             asyncio.run_coroutine_threadsafe(cola_mensajes.put(mensaje), loop)
-        except Exception as e:
+        except Exception as e:  #
             print(f"Error leyendo input: {e}")
             break
 
