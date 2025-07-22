@@ -1,8 +1,12 @@
-import socket  # Librería para trabajar con sockets (conexiones de red)
-import threading  # Librería para usar hilos (manejar múltiples clientes a la vez)
+#server.py
+# Servidor de chat simple usando sockets y hilos en Python
+
+
+import socket  
+import threading  
 
 # Dirección IP y puerto donde se ejecutará el servidor
-HOST = "127.0.0.1"  # IP local (localhost)
+HOST = "localhost"  # IP local (localhost) 192.168.0.1
 PORT = 55555  # Puerto por el cual se conectarán los clientes
 
 clientnames = {}  # Diccionario que guarda los nombres de los clientes conectados
@@ -15,40 +19,45 @@ def manejar_clientes (cliente_socket, direccion):
         # 1. Recibir nombre una sola vez
         nombre = cliente_socket.recv(1024).decode('utf-8')  # Recibe el nombre del cliente
         clientnames[cliente_socket] = nombre  # Lo guarda en el diccionario con su socket como clave
-        print(f"Cliente conectado desde {direccion}")  # Muestra de qué dirección se conectó
-        broadcast(f"🔵 {nombre} se ha unido al chat.", cliente_socket)  # Avisa a los demás que se unió
+        print(f"Cliente conectado desde {direccion}") 
+        broadcast(f"🔵 {nombre} se ha unido al chat.", cliente_socket)  
 
         # 2. Loop de mensajes
         while True:
             mensaje = cliente_socket.recv(1024).decode('utf-8')  # Escucha mensajes del cliente
             if mensaje:
-                broadcast(f"{nombre}: {mensaje}", cliente_socket)  # Reenvía a todos los demás clientes
+                broadcast(f"{nombre}: {mensaje}", cliente_socket) 
+    except (ConnectionResetError, OSError):
+        nombre_cliente = clientnames.get(cliente_socket, "Desconocido")
+        broadcast(f"{nombre_cliente} se fue del chat.", cliente_socket)
+        eliminar_cliente(cliente_socket)
     except Exception as e:
-        # Si el cliente se desconecta o hay error
-        nombre_cliente = clientnames.get(cliente_socket, "Desconocido")  # Busca el nombre, si no lo encuentra usa "Desconocido"
-        print(f"Error, {nombre_cliente} se ha desconectado: {e}")  # Muestra el error
-        broadcast(f"{nombre_cliente} se fue del chat.", cliente_socket)  # Avisa al resto del chat
+        print(f"💥 Error inesperado con cliente: {e}")
+        eliminar_cliente(cliente_socket)
 
 # Función para eliminar a un cliente del diccionario y cerrar su socket
 def eliminar_cliente(cliente_socket):
     if cliente_socket in clientnames:
-        del clientnames[cliente_socket]  # Elimina del diccionario
-    
+        del clientnames[cliente_socket]  
     try:
-        cliente_socket.close()  # Intenta cerrar el socket
+        cliente_socket.close()  #cerrar el socket
     except:
         pass  # Ignora errores si ya estaba cerrado
 
 # Función para enviar un mensaje a todos los clientes, menos al que lo envió
 def broadcast (mensaje_enviado, cliente_excluido):
-    for cliente in list(clientnames.keys()):  # Recorre todos los clientes conectados
-        if cliente != cliente_excluido:  # No le reenvía el mensaje al que lo envió
+    for cliente in list(clientnames.keys()):  # Recorre el nombre de los clientes conectados
+        if cliente != cliente_excluido:  
             try:
                 cliente.send(mensaje_enviado.encode('utf-8'))  # Envía el mensaje
+            except (BrokenPipeError, ConnectionResetError, OSError) as e:
+                print(f"❌ Error al enviar mensaje a un cliente: {e}")
+                cliente.close()
+                eliminar_cliente(cliente)
             except Exception as e:
-                cliente.close()  # Si falla, cierra el socket
-                print(f"Error, al enviar mensaje {e}")  # Muestra el error
-                eliminar_cliente(cliente)  # Elimina al cliente de la lista
+                print(f"💥 Error inesperado en broadcast: {e}")
+                cliente.close()
+                eliminar_cliente(cliente)  
 
 # Función que acepta nuevas conexiones entrantes al servidor
 def aceptar_clientes ():   
@@ -57,23 +66,25 @@ def aceptar_clientes ():
             cliente_socket, direccion = server.accept()  # Acepta una conexión entrante
             hilo = threading.Thread(target=manejar_clientes, args=(cliente_socket, direccion), daemon=True)
             hilo.start()  # Crea un hilo para manejar a ese cliente en paralelo
+        except OSError as e:
+            print(f"⚠️ Error aceptando clientes (probablemente el socket se cerró): {e}")
+            break
         except Exception as e:
-            print(f"Error aceptando clientes: {e}")  # Si falla algo al aceptar, lo muestra
-            break  # Sale del bucle
-
+            print(f"💥 Error inesperado al aceptar clientes: {e}")
+            break
 # Función que controla el estado del servidor desde consola
 def control_servidor():
     global server, servidor_activo  # Usa las variables globales
 
     while True:
-        comando = input("🛠️  Comando (abrir / cerrar / salir): ").strip().lower()  # Pide un comando por consola
+        comando = input("🛠️  Comando (abrir / cerrar / salir): ").strip().lower()  
 
         if comando == "abrir" and not servidor_activo:
-            server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Crea un socket TCP
+            server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # Crea un socket TCP, con protocolos IPv4
             server.bind((HOST, PORT))  # Lo enlaza a la IP y puerto
-            server.listen()  # Lo pone a escuchar conexiones entrantes
-            servidor_activo = True  # Marca el servidor como activo
-            print("Servidor ABIERTO y escuchando...")  # Muestra mensaje de éxito
+            server.listen()  
+            servidor_activo = True  
+            print("Servidor ABIERTO y escuchando...") 
             
             # Acá arrancás el hilo que acepta clientes
             threading.Thread(target=aceptar_clientes, daemon=True).start()  # Inicia el hilo que aceptará clientes
@@ -81,17 +92,26 @@ def control_servidor():
         elif comando == "cerrar" and servidor_activo:
             servidor_activo = False  # Cambia el estado a inactivo
             server.close()  # Cierra el socket del servidor
-            print("Servidor CERRADO (no acepta nuevos clientes)")  # Muestra mensaje
+            print("Servidor CERRADO, no acepta nuevos clientes") 
 
         elif comando == "salir":
-            print("Cerrando servidor y terminando...")  # Muestra mensaje final
+            print("Cerrando servidor y terminando...")
             if servidor_activo:
-                server.close()  # Si está activo, lo cierra
-            break  # Sale del bucle y termina la ejecución
-
-        else:
-            print("Comando inválido o acción no disponible en este estado.")  # Si el comando no es válido
+                for cliente in list(clientnames.keys()):
+                    try:
+                        cliente.send("⚠️ El servidor se ha cerrado.".encode('utf-8'))
+                        cliente.close()
+                    except (BrokenPipeError, OSError):
+                        pass
+                    except Exception as e:
+                        print(f"💥 Error inesperado cerrando cliente: {e}")
+                    del clientnames[cliente]
+                server.close()
+            break
+                
 
 # Punto de entrada del programa
 if __name__ == "__main__":
     control_servidor()  # Inicia la función principal de control
+
+
