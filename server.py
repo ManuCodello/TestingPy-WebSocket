@@ -133,19 +133,48 @@ class Servidor:
         finally:
             # 4. Limpieza: eliminar al cliente cuando se desconecta o hay un error.
             self._eliminar_cliente(socket_cliente, nombre_usuario)
+            
+        # -- ADD THIS NEW PRIVATE METHOD AFTER TDD REFACTOR --
+    def _es_mensaje_valido(self, mensaje: dict) -> bool:
+        """
+        Valida un mensaje para ser transmitido.
+        Un mensaje es válido si no está vacío y no excede el límite de longitud.
+        """
+        if mensaje.get("type") == "message":
+            texto_mensaje = mensaje.get("text", "").strip()
+            # A message is INVALID if it's empty OR too long.
+            if not texto_mensaje or len(texto_mensaje) > 512:
+                return False
+        # For all other message types, or valid messages, return True.
+        return True
 
     def broadcast(self, mensaje, socket_emisor):
         """
         Envía un mensaje a todos los clientes conectados, excepto al que lo envió.
         """
+        # # --- START MODIFICATION ---
+
+        # # 1. Validate the message before sending
+        # # This is where we add our new logic to satisfy the test.
+        # if mensaje.get("type") == "message":
+        #     texto_mensaje = mensaje.get("text", "").strip()
+        #     # Check for empty message OR a message that is too long.
+        #     if not texto_mensaje or len(texto_mensaje) > 512:
+        #         # If invalid, simply stop and do not send anything.
+        #         return
+
+        # # --- END MODIFICATION ---
+        
+                # --- TDD REFACTOR: Replace the old logic with a call to the new method ---
+        if not self._es_mensaje_valido(mensaje):
+            return # Stop if the message is invalid
+        
         with self.lock_clientes:
-            # Iteramos sobre una copia de las claves para poder modificar el diccionario de forma segura.
             for cliente in list(self.clientes.keys()):
                 if cliente != socket_emisor:
                     try:
                         Protocolo.enviar(cliente, mensaje)
                     except Exception:
-                        # Si falla el envío, asumimos que el cliente está desconectado y lo eliminamos.
                         self._eliminar_cliente(cliente, self.clientes.get(cliente))
 
     def _eliminar_cliente(self, socket_cliente, nombre_usuario):
