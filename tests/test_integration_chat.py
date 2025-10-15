@@ -14,8 +14,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from server import Servidor
 from protocol import Protocolo
 
-# A helper class to run a client in a separate thread.
-# This is CRUCIAL for testing a server without blocking the main test thread.
+# Clase auxiliar para ejecutar un cliente en un hilo separado.
+# Esto es FUNDAMENTAL para probar un servidor sin bloquear el hilo de prueba principal..
 class TestClient:
     """
     Un cliente de ayuda que encapsula la comunicaciÃ³n de red en un hilo separado,
@@ -168,8 +168,8 @@ def test_manejo_de_desconexion_inesperada(servidor_activo):
     # Cleanup
     alice.cerrar()
     bob.cerrar()
-    
-    # -- ADD THIS NEW TEST TO THE END OF THE FILE --
+
+    # --  --
 def test_mensajes_no_se_pierden_ni_duplican_bajo_carga(servidor_activo):
     """
     Verifica la integridad de los mensajes bajo una carga rÃ¡pida.
@@ -214,7 +214,7 @@ def test_mensajes_no_se_pierden_ni_duplican_bajo_carga(servidor_activo):
     emisor.cerrar()
     receptor.cerrar()
     
-    # -- ADD THIS FINAL NEGATIVE CASE TEST --
+    # -- NEGATIVE CASE TEST --
 def test_servidor_maneja_cliente_sin_autenticacion(servidor_activo):
     """
     â Œ CASO NEGATIVO: Un cliente se conecta pero nunca envÃ­a un nombre de usuario.
